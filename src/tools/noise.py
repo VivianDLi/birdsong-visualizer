@@ -3,6 +3,9 @@
 from itertools import Counter
 
 import numpy as np
+import maad
+
+from miscellaneous import moving_average
 
 # using adaptive level equalization algorithm from Towsey(2013)
 # note: data is a 1D array scaled between -1 and 1 for audio amplitude
@@ -13,11 +16,10 @@ def waveform_denoise(data, frame_size = 512, filter_window = 3, sd_count = 0.1):
     num_bins = 100
     upper_mode_bound = int(num_bins * 0.95)
     bin_width = noise_threshold_dB / num_bins
-    histogram = np.zeros(num_bins)
     # get signal envelope (average of frames)
-    envelope = [max(abs(data[i:i+frame_size])) for i in range(0, len(data), frame_size)]
+    envelope = maad.sound.envelope(data, Nt=frame_size)
     # convert to decibel (20 * log_10(signal))
-    db_signal = [20 * np.log10(x) for x in envelope]
+    db_signal = maad.util.amplitude2dB(envelope)
     # get minimum dBs
     min_dB = min(np.min(db_signal), min_env_dB)
     # populate histogram
@@ -27,8 +29,7 @@ def waveform_denoise(data, frame_size = 512, filter_window = 3, sd_count = 0.1):
     counts = Counter(h_indices)
     histogram = [counts[i] for i in range(0, num_bins)]
     # smooth histogram
-    cumsum = np.cumsum(histogram)
-    smoothed = (cumsum - np.concatenate(np.zeros(filter_window), cumsum)[0:len(cumsum)]) / np.concatenate(np.arange(0, filter_window), filter_window * np.ones(len(cumsum) - filter_window))
+    smoothed = moving_average(histogram, filter_window)
     # calculate mode and std
     mode_index = min(np.argmax(smoothed), upper_mode_bound)
     smoothed_cumsum = np.cumsum(smoothed[0:mode_index + 1])
@@ -38,11 +39,40 @@ def waveform_denoise(data, frame_size = 512, filter_window = 3, sd_count = 0.1):
     noise_std = (mode_index - std_index) * bin_width
     # calculate background dB threshold
     noise_threshold_dB = noise_mode + (noise_std * sd_count)
-    noise_threshold = 10 ** (noise_threshold_dB / 20) # noise dB scaled to data
+    noise_threshold = maad.util.dB2amplitude(noise_threshold_dB) # noise dB scaled to data
     # denoise data
     return [max(x - noise_threshold, 0) if x > 0 else min(x + noise_threshold, 0) for x in data] # move noise_threshold closer to 0
     
 # using adaptive level equalization algorithm from Towsey(2013)
-# note: data is a 2D array 
-def spectrogram_denoise(data):
-    pass
+# note: data is a 2D array of (frequency, frames) as power
+def spectrogram_denoise(data, filter_window = 5, sd_count = 0.1):
+    # calculate thresholds
+    thresholds = [_calculate_spectral_threshold(xs, filter_window, sd_count) for xs in data]
+    thresholds = moving_average(thresholds, filter_window)
+    # subtract threshold values
+    result = [np.clip(xs - thresholds[i], 0) for xs, i in enumerate(data)]
+    return result
+
+# calculate spectral threshold per frequency bin for noise reduction
+def _calculate_spectral_threshold(data, filter_window, sd_count):
+    # define constants
+    num_bins = int(len(data) / 8)
+    upper_mode_bound = int(num_bins * 0.95)
+    min_power = np.min(data)
+    max_power = np.max(data)
+    bin_width = (max_power - min_power) / num_bins
+    # populate histogram
+    h_indices = [min(num_bins - 1, max(0, int((x - min_power) / bin_width))) for x in data]
+    counts = Counter(h_indices)
+    histogram = [counts[i] for i in range(0, num_bins)]
+    # smooth histogram
+    smoothed = moving_average(histogram, filter_window)
+    # calculate mode and std
+    mode_index = min(np.argmax(smoothed), upper_mode_bound)
+    smoothed_cumsum = np.cumsum(smoothed[0:mode_index + 1])
+    threshold_sum = smoothed_cumsum[-1] * 0.68 # one std. dev.
+    std_index = np.argmax(np.cumsum(smoothed[mode_index: 0: -1]) > threshold_sum)
+    noise_mode = min_power + ((mode_index + 1) * bin_width)
+    noise_std = (mode_index - std_index) * bin_width
+    # calculate threshold
+    return noise_mode + (noise_std * sd_count)

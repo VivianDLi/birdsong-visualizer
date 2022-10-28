@@ -3,6 +3,7 @@
 import os
 
 import librosa
+import maad
 
 from tools.noise import waveform_denoise, spectrogram_denoise
 
@@ -27,7 +28,7 @@ class AudioSegment:
     def getSpectrogram(self):
         if self._spectrogram is not None:
             return self._spectrogram
-        spectrogram = librosa.stft(self.data, n_fft=512, hop_length=256, window="hamming", center=False)
+        spectrogram = maad.sound.spectrogram(self.data, self.sr, window="hamming", nperseg=512)
         if self.denoise:
             spectrogram = spectrogram_denoise(spectrogram)
         self._spectrogram = spectrogram
