@@ -72,6 +72,15 @@ class AudioStream(object):
             return AudioSegment(y, sr=self.sr)
         raise StopIteration()
 
+    def getSegment(self, start_time, end_time=None, duration=None):
+        if end_time is None and duration is None:
+            raise ValueError("One of end_time or duration must be specified")
+        if end_time is not None:
+            duration = end_time - start_time
+        y = librosa.load(self.file, sr=self.sr,
+                         offset=start_time, duration=duration)
+        return AudioSegment(y, sr=self.sr)
+
 
 def load_audio(file):
     _, ext = os.path.splitext(file)
