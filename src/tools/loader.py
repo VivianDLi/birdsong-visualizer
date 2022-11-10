@@ -16,7 +16,7 @@ class AudioSegment:
         self.denoise = denoise
         # caching results
         self._waveform = None
-        self._spectrogram, self._tn, self._fn = None
+        self._spectrogram, self._tn, self._fn = None, None, None
         self._bg_noise = None
 
     def getWaveform(self):  # in dB using average as baseline dB

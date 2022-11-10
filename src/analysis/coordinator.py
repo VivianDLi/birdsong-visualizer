@@ -3,7 +3,8 @@
 from multiprocessing import Pool
 import numpy as np
 
-from analysis.analyzer import Analyzer, Result
+from analysis.analyzer import Analyzer
+from analysis.result import Result
 from tools.loader import AudioStream
 
 
@@ -28,7 +29,7 @@ class AnalysisCoordinator:
                 results[index][i] = values
         results = {index: np.zeros(self.stream.getNumSegments())
                    for index in self.indices}
-        with Pool as pool:
+        with Pool() as pool:
             for analyzer in self.analyzers:
                 pool.apply_async(analyzer.calculateIndices,
                                  callback=collect_result)
