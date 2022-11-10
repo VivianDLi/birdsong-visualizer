@@ -6,7 +6,7 @@ import librosa
 import maad
 import numpy as np
 
-from tools.noise import waveform_denoise, spectrogram_denoise
+from src.tools.noise import waveform_denoise, spectrogram_denoise
 
 
 class AudioSegment:
@@ -40,8 +40,9 @@ class AudioSegment:
     def getSpectrogram(self):
         if self._spectrogram is not None:
             return self._spectrogram, self._tn, self._fn
-        spectrogram, tn, fn = maad.sound.spectrogram(
-            self.data, self.sr, window="hamming", mode="psd", nperseg=512)
+        spectrogram, tn, fn, _ = maad.sound.spectrogram(
+            self.data, self.sr, window="hamming", mode="psd", nperseg=512
+        )
         if self.denoise:
             spectrogram = spectrogram_denoise(spectrogram)
         self._spectrogram, self._tn, self._fn = spectrogram, tn, fn
@@ -54,7 +55,7 @@ class AudioStream(object):
         self.sr = sr
         self.segment_length = segment_length
         # file metadata
-        self.duration = librosa.get_duration(file)
+        self.duration: float = librosa.get_duration(filename=file)
         # iteration
         self.position = 0
 
@@ -66,8 +67,12 @@ class AudioStream(object):
 
     def next(self):
         if self.position < self.duration:
-            y = librosa.load(self.file, sr=self.sr,
-                             offset=self.position, duration=self.segment_length)
+            y = librosa.load(
+                self.file,
+                sr=self.sr,
+                offset=self.position,
+                duration=self.segment_length,
+            )
             self.position += self.segment_length
             return AudioSegment(y, sr=self.sr)
         raise StopIteration()
@@ -77,13 +82,14 @@ class AudioStream(object):
             raise ValueError("One of end_time or duration must be specified")
         if end_time is not None:
             duration = end_time - start_time
-        y = librosa.load(self.file, sr=self.sr,
-                         offset=start_time, duration=duration)
+        y = librosa.load(
+            self.file, sr=self.sr, offset=start_time, duration=duration
+        )
         return AudioSegment(y, sr=self.sr)
 
     def getNumSegments(self):
         # ceiling division through negation
-        return -(self.duration // -self.segment_length)
+        return int(-(self.duration // -self.segment_length))
 
 
 def load_audio(file):

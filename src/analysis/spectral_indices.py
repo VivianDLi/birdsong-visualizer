@@ -3,7 +3,7 @@
 import maad
 import numpy as np
 
-from tools.loader import AudioSegment
+from src.tools.loader import AudioSegment
 
 
 def spectral_entropy(segment: AudioSegment):

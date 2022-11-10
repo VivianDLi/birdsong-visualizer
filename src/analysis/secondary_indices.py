@@ -2,9 +2,9 @@
 
 import maad
 
-from analysis.temporal_indices import amplitude_median, temporal_entropy
-from analysis.spectral_indices import spectral_entropy
-from tools.loader import AudioSegment
+from .temporal_indices import amplitude_median, temporal_entropy
+from .spectral_indices import spectral_entropy
+from src.tools.loader import AudioSegment
 
 
 def acoustic_richness_index(segment: AudioSegment):

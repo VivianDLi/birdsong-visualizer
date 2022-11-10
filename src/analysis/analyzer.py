@@ -3,10 +3,10 @@
 from functools import partial
 from typing import Any, Dict, Callable
 
-from analysis.temporal_indices import *
-from analysis.spectral_indices import *
-from analysis.secondary_indices import *
-from tools.loader import AudioSegment
+from .temporal_indices import *
+from .spectral_indices import *
+from .secondary_indices import *
+from src.tools.loader import AudioSegment
 
 
 class Analyzer:
@@ -32,10 +32,13 @@ class Analyzer:
             "HFreqCov": partial(frequency_band_cover, segment),
             "NDSI": partial(normalized_difference_soundscape_index, segment),
             "ARI": partial(acoustic_richness_index, segment),
-            "H": partial(acoustic_entropy, segment)
+            "H": partial(acoustic_entropy, segment),
         }
-        self.index_functions = {index: index_function for index,
-                                index_function in index_mapping.items() if index in indices}
+        self.index_functions = {
+            index: index_function
+            for index, index_function in index_mapping.items()
+            if index in indices
+        }
         self.seg_num = seg_num
 
     def calculateIndices(self):
@@ -44,7 +47,8 @@ class Analyzer:
         for index, function in self.index_functions.items():
             if function in calculated:
                 results[index] = self._get_correct_result(
-                    index, calculated[function])
+                    index, calculated[function]
+                )
             else:
                 result = function()
                 calculated[function] = result
