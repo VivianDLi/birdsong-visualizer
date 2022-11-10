@@ -1,0 +1,4 @@
+nose
+numpy
+librosa
+scikit-maad
