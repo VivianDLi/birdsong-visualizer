@@ -3,10 +3,11 @@
 from analysis.temporal_indices import *
 from analysis.spectral_indices import *
 from analysis.secondary_indices import *
+from tools.loader import AudioSegment
 
 
 class Analyzer:
-    def __init__(self, segment: AudioSegment, indices):
+    def __init__(self, segment: AudioSegment, indices, seg_num):
         index_mapping = {
             "Ht": temporal_entropy,
             "M": amplitude_median,
@@ -30,9 +31,30 @@ class Analyzer:
             "ARI": acoustic_richness_index,
             "H": acoustic_entropy
         }
-        self.index_functions = set([index_mapping[index] for index in indices])
-        self.indices = indices
+        self.index_functions = {index: index_function for index,
+                                index_function in index_mapping.items() if index in indices}
         self.segment = segment
+        self.seg_num = seg_num
 
     def calculateIndices(self):
-        pass
+        calculated = {}
+        results = {}
+        for index, function in self.index_functions:
+            if function in calculated:
+                results[index] = self._get_correct_result(
+                    index, calculated[function])
+            else:
+                result = function(self.segment)
+                calculated[function] = result
+                results[index] = self._get_correct_result(index, result)
+        return (self.seg_num, results)
+
+    def _get_correct_result(index, result):
+        if index == "AEFrac" or index == "Hf" or index == "LFreqCov":
+            return result[0]
+        if index == "AEDur" or index == "HfVar" or index == "MFreqCov":
+            return result[1]
+        if index == "HfMax" or index == "HFreqCov":
+            return result[2]
+        else:
+            return result

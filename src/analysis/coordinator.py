@@ -1,5 +1,12 @@
 # coordinate multiple analyzers in parallel
 
+from multiprocessing import Pool
+import numpy as np
+
+from analysis.analyzer import Analyzer, Result
+from tools.loader import AudioStream
+
+
 class AnalysisCoordinator:
     def __init__(self, stream: AudioStream, indices):
         supported_indices = ["Ht", "M", "BgN", "SNR", "AcAct", "AEFrac", "AEDur", "Hf", "HfVar", "HfMax",
@@ -11,7 +18,20 @@ class AnalysisCoordinator:
             raise ValueError("Unsupported acoustic indices were specified.")
         self.stream = stream
         self.indices = indices
-        self.analyzers = [Analyzer(segment, indices) for segment in stream]
+        self.analyzers = [Analyzer(segment, indices, seg_num=i)
+                          for i, segment in enumerate(stream)]
 
     def calculateIndices(self):
-        pass
+        def collect_result(result):
+            i, dict_result = result
+            for index, values in dict_result.items():
+                results[index][i] = values
+        results = {index: np.zeros(self.stream.getNumSegments())
+                   for index in self.indices}
+        with Pool as pool:
+            for analyzer in self.analyzers:
+                pool.apply_async(analyzer.calculateIndices,
+                                 callback=collect_result)
+            pool.close()
+            pool.join()
+        return Result(results, self.stream.segment_length)

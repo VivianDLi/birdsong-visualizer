@@ -81,6 +81,10 @@ class AudioStream(object):
                          offset=start_time, duration=duration)
         return AudioSegment(y, sr=self.sr)
 
+    def getNumSegments(self):
+        # ceiling division through negation
+        return -(self.duration // -self.segment_length)
+
 
 def load_audio(file):
     _, ext = os.path.splitext(file)
