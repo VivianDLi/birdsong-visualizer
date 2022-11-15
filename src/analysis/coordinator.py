@@ -1,6 +1,6 @@
 # coordinate multiple analyzers in parallel
 
-from multiprocessing import Pool
+from concurrent.futures import ProcessPoolExecutor, as_completed
 from typing import List
 import numpy as np
 
@@ -48,21 +48,25 @@ class AnalysisCoordinator:
         ]
 
     def calculateIndices(self) -> Result:
-        def collect_result(result):
-            i, dict_result = result
-            print(i)
-            for index, values in dict_result.items():
-                results[index][i] = values
-
         results = {
-            index: np.zeros(self.stream.getNumSegments())
+            index: np.zeros((self.stream.getNumSegments(), 256))
             for index in self.indices
         }
-        with Pool() as pool:
-            for analyzer in self.analyzers:
-                pool.apply_async(
-                    analyzer.calculateIndices, callback=collect_result
-                )
-            pool.close()
-            pool.join()
+
+        with ProcessPoolExecutor() as executor:
+            futures_to_segment = {
+                executor.submit(analyzer.calculateIndices): i
+                for i, analyzer in enumerate(self.analyzers)
+            }
+            for future in as_completed(futures_to_segment):
+                segment_number = futures_to_segment[future]
+                try:
+                    i, dict_result = future.result()
+                    for index, values in dict_result.items():
+                        results[index][i] = np.array(values)
+                except Exception as exc:
+                    print(
+                        "Segment starting at %r generated an exception: %s"
+                        % (self.stream.segmentToTimestamp(segment_number), exc)
+                    )
         return Result(results, self.stream.segment_length)

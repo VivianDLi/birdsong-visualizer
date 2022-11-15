@@ -8,7 +8,7 @@ class Result:
         self.result = result
         self.segment_length = segment_length
 
-    def getIndexValues(self, index: int) -> List[float]:
+    def getIndexValues(self, index: str) -> List[List[float]]:
         return self.result[index]
 
     def segmentToTimestamp(self, seg_num: int) -> float:

@@ -1,7 +1,7 @@
 # class for calculating acoustic indices given an audio segment
 
 from functools import partial
-from typing import Any, Dict, Callable
+from typing import Dict, Callable, Iterable
 
 from .temporal_indices import *
 from .spectral_indices import *
@@ -10,7 +10,9 @@ from src.tools.loader import AudioSegment
 
 
 class Analyzer:
-    def __init__(self, segment: AudioSegment, indices: List[str], seg_num: int):
+    def __init__(
+        self, segment: AudioSegment, indices: List[str], seg_num: int
+    ):
         index_mapping: Dict[str, Callable] = {
             "Ht": partial(temporal_entropy, segment),
             "M": partial(amplitude_median, segment),
@@ -42,8 +44,8 @@ class Analyzer:
         self.seg_num = seg_num
 
     def calculateIndices(self):
-        calculated: dict[Callable, Any] = {}
-        results = {}
+        calculated: dict[Callable, List[float]] = {}
+        results: dict[str, List[float]] = {}
         for index, function in self.index_functions.items():
             if function in calculated:
                 results[index] = self._get_correct_result(
@@ -55,12 +57,15 @@ class Analyzer:
                 results[index] = self._get_correct_result(index, result)
         return (self.seg_num, results)
 
-    def _get_correct_result(self, index: str, result):
+    def _get_correct_result(self, index: str, result) -> List[float]:
+        value = result
         if index == "AEFrac" or index == "Hf" or index == "LFreqCov":
-            return result[0]
+            value = result[0]
         if index == "AEDur" or index == "HfVar" or index == "MFreqCov":
-            return result[1]
+            value = result[1]
         if index == "HfMax" or index == "HFreqCov":
-            return result[2]
+            value = result[2]
+        if isinstance(value, Iterable):
+            return list(value)
         else:
-            return result
+            return [value] * 256

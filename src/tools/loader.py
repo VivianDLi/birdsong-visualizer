@@ -1,17 +1,20 @@
 # class for representing audio as a stream of segments
 
 import os
-from typing import List, Tuple, Any
+from typing import List, Tuple, Any, Union
 
 import librosa
 import maad
 import numpy as np
+import sounddevice as sd
 
 from src.tools.noise import waveform_denoise, spectrogram_denoise
 
 
 class AudioSegment:
-    def __init__(self, data, sr: int, denoise: bool = True):
+    def __init__(
+        self, data, sr: int, denoise: bool = True, loop: bool = False
+    ):
         self.data = data
         self.sr = sr
         self.denoise = denoise
@@ -19,6 +22,10 @@ class AudioSegment:
         self._waveform = None
         self._spectrogram, self._tn, self._fn = None, None, None
         self._bg_noise = None
+
+        # audio playback
+        self.loop = loop
+        self._is_playing = False
 
     # in dB using average as baseline dB
     def getWaveform(self) -> List[float]:
@@ -62,6 +69,15 @@ class AudioSegment:
         self._spectrogram, self._tn, self._fn = spectrogram, tn, fn
         return spectrogram, tn, fn
 
+    def play(self):
+        sd.play(self.data, self.sr, loop=self.loop)
+        self._is_playing = True
+
+    def stop(self):
+        if self._is_playing:
+            sd.stop()
+            self._is_playing = False
+
 
 class AudioStream(object):
     def __init__(self, file: str, sr: int = 22050, segment_length: float = 60):
@@ -91,8 +107,19 @@ class AudioStream(object):
             return AudioSegment(y, sr=sr)
         raise StopIteration()
 
+    def getNumSegments(self) -> int:
+        # ceiling division through negation
+        return int(-(self.duration // -self.segment_length))
+
+    def segmentToTimestamp(self, seg_num: int) -> float:
+        return self.segment_length * seg_num
+
     def getSegment(
-        self, start_time, end_time=None, duration=None
+        self,
+        start_time: float,
+        end_time: Union[float, None] = None,
+        duration: Union[float, None] = None,
+        loop: bool = False,
     ) -> AudioSegment:
         if end_time is None and duration is None:
             raise ValueError("One of end_time or duration must be specified")
@@ -101,11 +128,7 @@ class AudioStream(object):
         y, sr = librosa.load(
             self.file, sr=self.sr, offset=start_time, duration=duration
         )
-        return AudioSegment(y, sr=sr)
-
-    def getNumSegments(self) -> int:
-        # ceiling division through negation
-        return int(-(self.duration // -self.segment_length))
+        return AudioSegment(y, sr=sr, loop=loop)
 
 
 def load_audio(file: str):
