@@ -16,5 +16,5 @@ def acoustic_richness_index(segment: AudioSegment):
 
 def acoustic_entropy(segment: AudioSegment):
     Ht = temporal_entropy(segment)
-    Hf = spectral_entropy(segment)
+    Hf, _, _ = spectral_entropy(segment)
     return Ht * Hf

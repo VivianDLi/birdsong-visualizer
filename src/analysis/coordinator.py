@@ -1,6 +1,7 @@
 # coordinate multiple analyzers in parallel
 
 from multiprocessing import Pool
+from typing import List
 import numpy as np
 
 from .analyzer import Analyzer
@@ -9,7 +10,7 @@ from src.tools.loader import AudioStream
 
 
 class AnalysisCoordinator:
-    def __init__(self, stream: AudioStream, indices):
+    def __init__(self, stream: AudioStream, indices: List[str]):
         supported_indices = [
             "Ht",
             "M",
@@ -46,9 +47,10 @@ class AnalysisCoordinator:
             for i, segment in enumerate(stream)
         ]
 
-    def calculateIndices(self):
+    def calculateIndices(self) -> Result:
         def collect_result(result):
             i, dict_result = result
+            print(i)
             for index, values in dict_result.items():
                 results[index][i] = values
 

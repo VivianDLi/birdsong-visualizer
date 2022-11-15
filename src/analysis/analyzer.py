@@ -10,7 +10,7 @@ from src.tools.loader import AudioSegment
 
 
 class Analyzer:
-    def __init__(self, segment: AudioSegment, indices, seg_num):
+    def __init__(self, segment: AudioSegment, indices: List[str], seg_num: int):
         index_mapping: Dict[str, Callable] = {
             "Ht": partial(temporal_entropy, segment),
             "M": partial(amplitude_median, segment),
@@ -34,7 +34,7 @@ class Analyzer:
             "ARI": partial(acoustic_richness_index, segment),
             "H": partial(acoustic_entropy, segment),
         }
-        self.index_functions = {
+        self.index_functions: Dict[str, Callable] = {
             index: index_function
             for index, index_function in index_mapping.items()
             if index in indices
@@ -55,7 +55,7 @@ class Analyzer:
                 results[index] = self._get_correct_result(index, result)
         return (self.seg_num, results)
 
-    def _get_correct_result(self, index, result):
+    def _get_correct_result(self, index: str, result):
         if index == "AEFrac" or index == "Hf" or index == "LFreqCov":
             return result[0]
         if index == "AEDur" or index == "HfVar" or index == "MFreqCov":

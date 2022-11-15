@@ -1,5 +1,6 @@
 # functions to calculate acoustic indices given spectral information
 
+from typing import List
 import maad
 import numpy as np
 
@@ -8,14 +9,21 @@ from src.tools.loader import AudioSegment
 
 def spectral_entropy(segment: AudioSegment):
     S, _, fn = segment.getSpectrogram()
-    av, var, _, maxima, _, _ = maad.features.spectral_entropy(
+    result = maad.features.spectral_entropy(
         S, fn, flim=(482, 8820)
     )
+    if result is not None:
+        av: float
+        var: float
+        maxima: float
+        av, var, _, maxima, _, _ = result
+    else:
+        av, var, maxima = 0.0, 0.0, 0.0
     return av, var, maxima
 
 
 def spectral_diversity(segment: AudioSegment):
-    S, _, fn = segment.getSpectrogram()
+    S, _, _ = segment.getSpectrogram()
     S_ampl = np.sqrt(S)
     S_grouped = [
         np.nanmean(
@@ -33,24 +41,25 @@ def spectral_diversity(segment: AudioSegment):
         _remove_isolated_peaks(np.where(band > 0.07, 1, 0))
         for band in S_grouped
     ]
-    S_binary = [_remove_isolated_peaks(band) for band in S_binary]
     return _cluster_peaks(S_binary)
 
 
-def _remove_isolated_peaks(band):
+def _remove_isolated_peaks(band: List[int]) -> List[int]:
     for i in range(1, len(band) - 1):
         if band[i - 1] == 0 and band[i + 1] == 0:
             band[i] = 0
     return band
 
 
-def _cluster_peaks(S_binary):
-    training_set = S_binary[np.count_nonzero(S_binary, axis=1) > 2]
+def _cluster_peaks(S_binary: List[List[int]]) -> int:
+    training_set: List[List[int]
+                       ] = np.array(S_binary)[np.count_nonzero(S_binary, axis=1) > 2]
     if len(training_set) < 9:
         return 0
     initial_representatives = np.random.randint(len(training_set), size=2)
-    clusters = [initial_representatives[0], initial_representatives[1]]
-    cluster_sizes = [1, 1]
+    clusters: List[int] = [
+        initial_representatives[0], initial_representatives[1]]
+    cluster_sizes = np.array([1, 1])
 
     iterations = 0
     old_cluster_sizes = None
@@ -62,16 +71,16 @@ def _cluster_peaks(S_binary):
                 similarity = np.zeros(len(clusters))
                 for j, cluster in enumerate(clusters):
                     representative = training_set[cluster]
-                    similarity[j] = np.sum(representative & vector) / np.sum(
-                        representative | vector
+                    similarity[j] = np.sum(np.array(representative) & np.array(vector)) / np.sum(
+                        np.array(representative) | np.array(vector)
                     )
                 cluster = np.argmax(similarity)
                 if similarity[cluster] > 0.15:
                     clusters.append(i)
-                    cluster_sizes.append(1)
+                    np.append(cluster_sizes, 1)
                 else:
                     cluster_sizes[cluster] += 1
-        clusters = clusters[cluster_sizes > 1]
+        clusters = np.array(clusters)[cluster_sizes > 1]
         cluster_sizes = cluster_sizes[cluster_sizes > 1]
         iterations += 1
     cluster_sizes = cluster_sizes[cluster_sizes > 3]
@@ -86,7 +95,7 @@ def spectral_activity(segment: AudioSegment):
 
 
 def acoustic_complexity_index(segment: AudioSegment):
-    S = segment.getSpectrogram()
+    S, _, _ = segment.getSpectrogram()
     S_ampl = np.sqrt(S)
     _, bins, total = maad.features.acoustic_complexity_index(S_ampl)
     return total / len(bins)  # average across bins
@@ -104,7 +113,7 @@ def bioacoustic_index(segment: AudioSegment):
     return maad.features.bioacoustics_index(S_ampl, fn, flim=(2000, 11000))
 
 
-def frequency_band_cover(segment: AudioSegment, db_threshold=3):
+def frequency_band_cover(segment: AudioSegment, db_threshold: int = 3):
     S, _, fn = segment.getSpectrogram()
     S_dB = maad.util.power2dB(S)
     low, mid, high = maad.features.spectral_cover(

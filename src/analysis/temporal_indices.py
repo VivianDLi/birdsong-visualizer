@@ -6,12 +6,15 @@ import numpy as np
 from src.tools.loader import AudioSegment
 
 
-def temporal_entropy(segment: AudioSegment, frame_size=512):
+def temporal_entropy(segment: AudioSegment, frame_size: int = 512):
     x = segment.data
-    return maad.features.temporal_entropy(x, Nt=frame_size)
+    result = maad.features.temporal_entropy(x, Nt=frame_size)
+    if result is None:
+        return 0.0
+    return result
 
 
-def amplitude_median(segment: AudioSegment, frame_size=512):
+def amplitude_median(segment: AudioSegment, frame_size: int = 512):
     x = segment.getWaveform()
     return maad.features.temporal_median(x, Nt=frame_size)
 
@@ -26,7 +29,7 @@ def signal_to_noise_ratio(segment: AudioSegment):
     return np.max(x) - noise
 
 
-def acoustic_activity(segment: AudioSegment, db_threshold=3, frame_size=512):
+def acoustic_activity(segment: AudioSegment, db_threshold: int = 3, frame_size: int = 512):
     x = segment.data
     frac, _, _ = maad.features.temporal_activity(
         x, dB_threshold=db_threshold, Nt=frame_size
@@ -35,7 +38,7 @@ def acoustic_activity(segment: AudioSegment, db_threshold=3, frame_size=512):
 
 
 def acoustic_event_proportion_and_duration(
-    segment: AudioSegment, db_threshold=3, frame_size=512
+    segment: AudioSegment, db_threshold: int = 3, frame_size: int = 512
 ):
     x = segment.data
     sr = segment.sr
