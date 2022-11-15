@@ -42,8 +42,14 @@ class AudioSegment:
         self._bg_noise = noise
         return noise
 
-    def getSpectrogram(self) -> Tuple[List[List[float]], List[float], List[float]]:
-        if self._spectrogram is not None and self._tn is not None and self._fn is not None:
+    def getSpectrogram(
+        self,
+    ) -> Tuple[List[List[float]], List[float], List[float]]:
+        if (
+            self._spectrogram is not None
+            and self._tn is not None
+            and self._fn is not None
+        ):
             return self._spectrogram, self._tn, self._fn
         spectrogram: List[List[float]]
         tn: List[float]
@@ -75,25 +81,27 @@ class AudioStream(object):
 
     def next(self):
         if self.position < self.duration:
-            y = librosa.load(
+            y, sr = librosa.load(
                 self.file,
                 sr=self.sr,
                 offset=self.position,
                 duration=self.segment_length,
             )
             self.position += self.segment_length
-            return AudioSegment(y, sr=self.sr)
+            return AudioSegment(y, sr=sr)
         raise StopIteration()
 
-    def getSegment(self, start_time, end_time=None, duration=None) -> AudioSegment:
+    def getSegment(
+        self, start_time, end_time=None, duration=None
+    ) -> AudioSegment:
         if end_time is None and duration is None:
             raise ValueError("One of end_time or duration must be specified")
         if end_time is not None:
             duration = end_time - start_time
-        y = librosa.load(
+        y, sr = librosa.load(
             self.file, sr=self.sr, offset=start_time, duration=duration
         )
-        return AudioSegment(y, sr=self.sr)
+        return AudioSegment(y, sr=sr)
 
     def getNumSegments(self) -> int:
         # ceiling division through negation
@@ -102,7 +110,9 @@ class AudioStream(object):
 
 def load_audio(file: str):
     _, ext = os.path.splitext(file)
-    if ext != ".wav" or not os.path.exists(file):
-        return
+    if ext != ".wav":
+        raise ValueError("file is not a .wav")
+    if not os.path.exists(file):
+        raise ValueError("file doesn't exist")
 
     return AudioStream(file)

@@ -2,3 +2,4 @@ nose
 numpy
 librosa
 scikit-maad
+scipy

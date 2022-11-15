@@ -12,7 +12,12 @@ from .miscellaneous import moving_average
 # note: data is a 1D array of dB values converted from average signal amplitude
 
 
-def waveform_denoise(data: List[float], frame_size: int = 512, filter_window: int = 3, sd_count: float = 0.1) -> Tuple[List[float], float]:
+def waveform_denoise(
+    data: List[float],
+    frame_size: int = 512,
+    filter_window: int = 3,
+    sd_count: float = 0.1,
+) -> Tuple[List[float], float]:
     # set constants
     min_env_dB = -60
     noise_threshold_dB = 10
@@ -20,12 +25,12 @@ def waveform_denoise(data: List[float], frame_size: int = 512, filter_window: in
     upper_mode_bound = int(num_bins * 0.95)
     bin_width = noise_threshold_dB / num_bins
     # get signal envelope (average of frames)
-    envelope = maad.sound.envelope(data, Nt=frame_size)
+    envelope = np.array(maad.sound.envelope(data, Nt=frame_size))
     # get minimum dBs
     min_dB = min(np.min(envelope), min_env_dB)
     # populate histogram
     bg_threshold = min_dB + noise_threshold_dB
-    bg_signal = envelope[envelope >= min_dB | envelope <= bg_threshold]
+    bg_signal = envelope[(envelope >= min_dB) | (envelope <= bg_threshold)]
     h_indices = [
         min(num_bins - 1, max(0, int((x - min_dB) / bin_width)))
         for x in bg_signal
@@ -36,10 +41,11 @@ def waveform_denoise(data: List[float], frame_size: int = 512, filter_window: in
     smoothed = moving_average(histogram, filter_window)
     # calculate mode and std
     mode_index = min(int(np.argmax(smoothed)), upper_mode_bound)
-    smoothed_cumsum = np.cumsum(smoothed[0: mode_index + 1])
+    smoothed_cumsum = np.cumsum(smoothed[0:mode_index])
     threshold_sum = smoothed_cumsum[-1] * 0.68  # one std. dev.
     std_index = int(
-        np.argmax(np.cumsum(smoothed[mode_index:0:-1]) > threshold_sum))
+        np.argmax(np.cumsum(smoothed[mode_index - 1 : 0 : -1]) > threshold_sum)
+    )
     noise_mode = min_dB + ((mode_index + 1) * bin_width)
     noise_std = (mode_index - std_index) * bin_width
     # calculate background dB threshold
@@ -52,7 +58,9 @@ def waveform_denoise(data: List[float], frame_size: int = 512, filter_window: in
 # note: data is a 2D array of (frequency, frames) as power
 
 
-def spectrogram_denoise(data: List[List[float]], filter_window: int = 5, sd_count: float = 0.1) -> List[List[float]]:
+def spectrogram_denoise(
+    data: List[List[float]], filter_window: int = 5, sd_count: float = 0.1
+) -> List[List[float]]:
     # calculate thresholds
     thresholds = [
         _calculate_spectral_threshold(xs, filter_window, sd_count)
@@ -60,15 +68,18 @@ def spectrogram_denoise(data: List[List[float]], filter_window: int = 5, sd_coun
     ]
     thresholds = moving_average(thresholds, filter_window)
     # subtract threshold values
-    result = np.clip([np.array(xs) - thresholds[i]
-                     for i, xs in enumerate(data)], 0, None)
+    result = np.clip(
+        [np.array(xs) - thresholds[i] for i, xs in enumerate(data)], 0, None
+    )
     return result
 
 
 # calculate spectral threshold per frequency bin for noise reduction
 
 
-def _calculate_spectral_threshold(data: List[float], filter_window: int, sd_count: float) -> float:
+def _calculate_spectral_threshold(
+    data: List[float], filter_window: int, sd_count: float
+) -> float:
     # define constants
     num_bins = int(len(data) / 8)
     upper_mode_bound = int(num_bins * 0.95)
@@ -86,9 +97,14 @@ def _calculate_spectral_threshold(data: List[float], filter_window: int, sd_coun
     smoothed = moving_average(histogram, filter_window)
     # calculate mode and std
     mode_index = min(int(np.argmax(smoothed)), upper_mode_bound)
-    smoothed_cumsum = np.cumsum(smoothed[0: mode_index + 1])
-    threshold_sum = smoothed_cumsum[-1] * 0.68  # one std. dev.
-    std_index = np.argmax(np.cumsum(smoothed[mode_index:0:-1]) > threshold_sum)
+    if mode_index == 0:
+        std_index = 0
+    else:
+        smoothed_cumsum = np.cumsum(smoothed[0:mode_index])
+        threshold_sum = smoothed_cumsum[-1] * 0.68  # one std. dev.
+        std_index = np.argmax(
+            np.cumsum(smoothed[mode_index - 1 :: -1]) > threshold_sum
+        )
     noise_mode = min_power + ((mode_index + 1) * bin_width)
     noise_std = (mode_index - std_index) * bin_width
     # calculate threshold
