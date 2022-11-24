@@ -28,7 +28,7 @@ class TestNoiseReduction(unittest.TestCase):
 
             self.assertEqual(len(denoised_audio), len(original_audio))
 
-    def test_acoustic_noise_reduction_removes_constant_sound(self):
+    def test_acoustic_noise_reduction_removes_noise(self):
         for segment in self.stream:
             original_audio = segment.data
             unnoised_audio = AudioSegment(
@@ -38,16 +38,14 @@ class TestNoiseReduction(unittest.TestCase):
             noise = segment.getNoise()
 
             self.assertAlmostEqual(noise, -49.45)
-            self.assertEqual(
-                denoised_audio, [max(x - noise, 0.0) for x in unnoised_audio]
-            )
+            self.assertEqual(unnoised_audio, denoised_audio)
 
     def test_spectral_noise_reduction_returns_same_size_array(self):
         for segment in self.stream:
             spectrogram, _, _ = segment.getSpectrogram()
 
             self.assertEqual(
-                np.array(spectrogram).shape,
+                spectrogram.shape,
                 (256, 5166),
             )
 
@@ -59,6 +57,4 @@ class TestNoiseReduction(unittest.TestCase):
             ).getSpectrogram()
             denoised_spectrogram, _, _ = segment.getSpectrogram()
 
-            self.assertEqual(
-                np.array(denoised_spectrogram), np.array(unnoised_spectrogram)
-            )
+            self.assertEqual(denoised_spectrogram, unnoised_spectrogram)

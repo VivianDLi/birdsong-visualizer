@@ -4,10 +4,10 @@ from typing import List, Tuple
 import maad
 import numpy as np
 
-from src.tools.loader import AudioSegment
+from src.tools.interfaces import IAudioSegment
 
 
-def spectral_entropy(segment: AudioSegment) -> Tuple[float, float, float]:
+def spectral_entropy(segment: IAudioSegment) -> Tuple[float, float, float]:
     S, _, fn = segment.getSpectrogram()
     result = maad.features.spectral_entropy(S, fn, flim=(482, 8820))
     if result is not None:
@@ -20,7 +20,7 @@ def spectral_entropy(segment: AudioSegment) -> Tuple[float, float, float]:
     return av, var, maxima
 
 
-def spectral_diversity(segment: AudioSegment) -> int:
+def spectral_diversity(segment: IAudioSegment) -> int:
     S, _, _ = segment.getSpectrogram()
     S_ampl = np.sqrt(S)
     S_grouped = [
@@ -35,24 +35,24 @@ def spectral_diversity(segment: AudioSegment) -> int:
         )
         for band in S_ampl
     ]
-    S_binary = [
-        _remove_isolated_peaks(np.where(band > 0.07, 1, 0))
-        for band in S_grouped
-    ]
+    S_binary = np.vstack(
+        [
+            _remove_isolated_peaks(np.where(band > 0.07, 1, 0))
+            for band in S_grouped
+        ]
+    )
     return _cluster_peaks(S_binary)
 
 
-def _remove_isolated_peaks(band: List[int]) -> List[int]:
+def _remove_isolated_peaks(band: np.ndarray) -> np.ndarray:
     for i in range(1, len(band) - 1):
         if band[i - 1] == 0 and band[i + 1] == 0:
             band[i] = 0
     return band
 
 
-def _cluster_peaks(S_binary: List[List[int]]) -> int:
-    training_set: List[List[int]] = np.array(S_binary)[
-        np.count_nonzero(S_binary, axis=1) > 2
-    ]
+def _cluster_peaks(S_binary: np.ndarray) -> int:
+    training_set: np.ndarray = S_binary[np.count_nonzero(S_binary, axis=1) > 2]
     if len(training_set) < 9:
         return 0
     initial_representatives = np.random.randint(len(training_set), size=2)
@@ -88,34 +88,34 @@ def _cluster_peaks(S_binary: List[List[int]]) -> int:
     return len(cluster_sizes)
 
 
-def spectral_activity(segment: AudioSegment) -> List[float]:
+def spectral_activity(segment: IAudioSegment) -> np.ndarray:
     S, _, _ = segment.getSpectrogram()
     S_dB = maad.util.power2dB(S)
     frac, _, _ = maad.features.spectral_activity(S_dB)
     return frac
 
 
-def acoustic_complexity_index(segment: AudioSegment) -> List[float]:
+def acoustic_complexity_index(segment: IAudioSegment) -> np.ndarray:
     S, _, _ = segment.getSpectrogram()
     S_ampl = np.sqrt(S)
     _, bins, _ = maad.features.acoustic_complexity_index(S_ampl)
     return bins  # average across bins
 
 
-def acoustic_evenness_index(segment: AudioSegment) -> float:
+def acoustic_evenness_index(segment: IAudioSegment) -> float:
     S, _, fn = segment.getSpectrogram()
     S_ampl = np.sqrt(S)
     return maad.features.acoustic_eveness_index(S_ampl, fn)
 
 
-def bioacoustic_index(segment: AudioSegment) -> float:
+def bioacoustic_index(segment: IAudioSegment) -> float:
     S, _, fn = segment.getSpectrogram()
     S_ampl = np.sqrt(S)
     return maad.features.bioacoustics_index(S_ampl, fn, flim=(2000, 11000))
 
 
 def frequency_band_cover(
-    segment: AudioSegment, db_threshold: int = 3
+    segment: IAudioSegment, db_threshold: int = 3
 ) -> Tuple[float, float, float]:
     S, _, fn = segment.getSpectrogram()
     S_dB = maad.util.power2dB(S)
@@ -130,7 +130,7 @@ def frequency_band_cover(
     return low, mid, high
 
 
-def normalized_difference_soundscape_index(segment: AudioSegment) -> float:
+def normalized_difference_soundscape_index(segment: IAudioSegment) -> float:
     S, _, fn = segment.getSpectrogram()
     ndsi, _, _, _ = maad.features.soundscape_index(
         S, fn, flim_bioPh=(2000, 11000), flim_antroPh=(1000, 2000)

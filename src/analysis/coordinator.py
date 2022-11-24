@@ -5,12 +5,12 @@ from typing import List
 import numpy as np
 
 from .analyzer import Analyzer
-from .result import Result
-from src.tools.loader import AudioStream
+from .spectrogram import Spectrogram
+from src.tools.interfaces import ICoordinator, ISpectrogram, IAudioStream
 
 
-class AnalysisCoordinator:
-    def __init__(self, stream: AudioStream, indices: List[str]):
+class AnalysisCoordinator(ICoordinator):
+    def __init__(self, stream: IAudioStream, indices: List[str]):
         supported_indices = [
             "Ht",
             "M",
@@ -41,32 +41,42 @@ class AnalysisCoordinator:
         if any([i not in supported_indices for i in indices]):
             raise ValueError("Unsupported acoustic indices were specified.")
         self.stream = stream
-        self.indices = indices
-        self.analyzers = [
-            Analyzer(segment, indices, seg_num=i)
-            for i, segment in enumerate(stream)
-        ]
+        self.current_indices = indices
+        self.spectrogram = Spectrogram({})
+        self._analyzers = [Analyzer(segment) for segment in stream]
 
-    def calculateIndices(self) -> Result:
-        results = {
-            index: np.zeros((self.stream.getNumSegments(), 256))
-            for index in self.indices
-        }
+    def calculateIndex(self, index: str) -> np.ndarray:
+        try:
+            return self.spectrogram.getResult(index)
+        except:
+            results = np.empty((self.stream.getNumberOfSegments(), 256))
+            with ProcessPoolExecutor() as executor:
+                futures_to_segment = {
+                    executor.submit(analyzer.calculateIndex, index): i
+                    for i, analyzer in enumerate(self._analyzers)
+                }
+                for future in as_completed(futures_to_segment):
+                    segment_number = futures_to_segment[future]
+                    try:
+                        result = future.result()
+                        results[segment_number] = result
+                    except Exception as exc:
+                        print(
+                            "Segment starting at %r generated an exception for index %s: %s"
+                            % (
+                                self.stream.segmentToTimestamp(segment_number),
+                                index,
+                                exc,
+                            )
+                        )
+                        results[segment_number] = np.zeros(256)
+            self.spectrogram.addIndex(index, results)
+            return results
 
-        with ProcessPoolExecutor() as executor:
-            futures_to_segment = {
-                executor.submit(analyzer.calculateIndices): i
-                for i, analyzer in enumerate(self.analyzers)
-            }
-            for future in as_completed(futures_to_segment):
-                segment_number = futures_to_segment[future]
-                try:
-                    i, dict_result = future.result()
-                    for index, values in dict_result.items():
-                        results[index][i] = np.array(values)
-                except Exception as exc:
-                    print(
-                        "Segment starting at %r generated an exception: %s"
-                        % (self.stream.segmentToTimestamp(segment_number), exc)
-                    )
-        return Result(results, self.stream.segment_length)
+    def calculateIndices(self) -> ISpectrogram:
+        for index in self.current_indices:
+            self.calculateIndex(index)
+        return self.spectrogram
+
+    def getSTFT(self, n_fft: int = 2048, hop_length: int = 1024) -> np.ndarray:
+        return self.stream.createSTFT(n_fft, hop_length)

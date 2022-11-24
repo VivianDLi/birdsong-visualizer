@@ -4,3 +4,4 @@ librosa
 scikit-maad
 scipy
 sounddevice
+typing_extensions

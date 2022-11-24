@@ -1,7 +1,7 @@
 # remove background noise of audio
 
 from collections import Counter
-from typing import List, Tuple
+from typing import Tuple
 
 import numpy as np
 import maad
@@ -13,11 +13,11 @@ from .miscellaneous import moving_average
 
 
 def waveform_denoise(
-    data: List[float],
+    data: np.ndarray,
     frame_size: int = 512,
     filter_window: int = 3,
     sd_count: float = 0.1,
-) -> Tuple[List[float], float]:
+) -> Tuple[np.ndarray, float]:
     # set constants
     min_env_dB = -60
     noise_threshold_dB = 10
@@ -51,7 +51,7 @@ def waveform_denoise(
     # calculate background dB threshold
     noise_threshold = noise_mode + (noise_std * sd_count)
     # denoise data
-    return [max(x - noise_threshold, 0) for x in data], noise_threshold
+    return (data - noise_threshold).clip(0), noise_threshold
 
 
 # using adaptive level equalization algorithm from Towsey(2013)
@@ -59,8 +59,8 @@ def waveform_denoise(
 
 
 def spectrogram_denoise(
-    data: List[List[float]], filter_window: int = 5, sd_count: float = 0.1
-) -> List[List[float]]:
+    data: np.ndarray, filter_window: int = 5, sd_count: float = 0.1
+) -> np.ndarray:
     # calculate thresholds
     thresholds = [
         _calculate_spectral_threshold(xs, filter_window, sd_count)
@@ -68,9 +68,7 @@ def spectrogram_denoise(
     ]
     thresholds = moving_average(thresholds, filter_window)
     # subtract threshold values
-    result = np.clip(
-        [np.array(xs) - thresholds[i] for i, xs in enumerate(data)], 0, None
-    )
+    result = np.clip(data.transpose() - thresholds, 0, None).transpose()
     return result
 
 
@@ -78,7 +76,7 @@ def spectrogram_denoise(
 
 
 def _calculate_spectral_threshold(
-    data: List[float], filter_window: int, sd_count: float
+    data: np.ndarray, filter_window: int, sd_count: float
 ) -> float:
     # define constants
     num_bins = int(len(data) / 8)
