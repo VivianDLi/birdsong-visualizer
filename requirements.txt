@@ -5,3 +5,4 @@ scikit-maad
 scipy
 sounddevice
 typing_extensions
+kivy[base,media,dev]
