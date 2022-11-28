@@ -6,3 +6,4 @@ scipy
 sounddevice
 typing_extensions
 kivy[base,media,dev]
+matplotlib

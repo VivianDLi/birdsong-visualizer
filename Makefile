@@ -2,7 +2,7 @@ venv: venv/touchfile
 
 venv/touchfile: requirements.txt
 	if not exist .venv python -m venv .venv
-	".venv/Scripts/activate" && pip install -Ur requirements.txt
+	".venv/Scripts/activate" && pip install --quiet -Ur requirements.txt
 	type NUL > .venv/touchfile
 
 run: venv

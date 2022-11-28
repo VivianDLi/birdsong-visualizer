@@ -66,9 +66,9 @@ class TestAcousticFunctions(unittest.TestCase):
             self.assertEqual(dur, expected_durations[i])
 
     def test_spectral_entropy_returns_expected_result(self):
-        expected_averages = [1.0, 0.722, 1.0]
-        expected_variances = [1.0, 0.794, 1.0]
-        expected_maximums = [1.0, 1.0, 1.0]
+        expected_averages = [0.891, 0.722, 0.891]
+        expected_variances = [0.854, 0.794, 0.892]
+        expected_maximums = [1.0, 0.869, 1.0]
         for i, segment in enumerate(self.stream):
             average, variance, maximum = spectral_entropy(segment)
 
@@ -97,7 +97,7 @@ class TestAcousticFunctions(unittest.TestCase):
             self.assertEqual(np.array(result).shape, (256,))
 
     def test_acoustic_evenness_index_returns_expected_result(self):
-        expected_results = [0.942, 0.922, 0.943]
+        expected_results = [0.942, 0.929, 0.943]
         for i, segment in enumerate(self.stream):
             result = acoustic_evenness_index(segment)
 
@@ -138,7 +138,7 @@ class TestAcousticFunctions(unittest.TestCase):
             self.assertAlmostEqual(result, expected_results[i], places=2)
 
     def test_acoustic_entropy_returns_expected_result(self):
-        expected_results = [1.0, 0.722, 1.0]
+        expected_results = [0.891, 0.722, 0.891]
         for i, segment in enumerate(self.stream):
             result = acoustic_entropy(segment)
 

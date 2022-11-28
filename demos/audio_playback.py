@@ -6,7 +6,6 @@ sys.path.insert(
 )
 
 import time
-import sounddevice as sd
 from src.tools.loader import load_audio
 
 if __name__ == "__main__":
