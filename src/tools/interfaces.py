@@ -27,6 +27,7 @@ class IAudioSegment(Protocol):
 
 class IAudioStream(Iterable[IAudioSegment], Protocol):
     file: str
+    sr: int
     time_limits: Tuple[float, float]
     file_duration: float
     segment_duration: float
@@ -63,7 +64,9 @@ class IAudioStream(Iterable[IAudioSegment], Protocol):
 
 
 class ISpectrogram(Protocol):
+    shape: Tuple[int, int]
     result: Dict[str, np.ndarray]
+    sr: int
 
     @abstractmethod
     def getResult(self, index: str) -> np.ndarray:
@@ -73,8 +76,16 @@ class ISpectrogram(Protocol):
     def addIndex(self, index: str, result: np.ndarray) -> None:
         raise NotImplementedError
 
+    def getShape(self) -> Tuple[int, int]:
+        return self.shape
+
     def getIndices(self) -> List[str]:
         return list(self.result.keys())
+
+    def getFrequencies(self) -> List[float]:
+        return list(
+            np.linspace(0, self.sr // 2, self.shape[1], endpoint=False)
+        )
 
 
 class ICoordinator(Protocol):
@@ -92,6 +103,14 @@ class ICoordinator(Protocol):
 
     @abstractmethod
     def getSTFT(self) -> np.ndarray:
+        raise NotImplementedError
+
+    @abstractmethod
+    def loadIndices(self, path) -> ISpectrogram:
+        raise NotImplementedError
+
+    @abstractmethod
+    def saveIndices(self, path) -> None:
         raise NotImplementedError
 
     def getSpectrogram(self) -> ISpectrogram:

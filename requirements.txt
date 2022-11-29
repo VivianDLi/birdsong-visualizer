@@ -1,5 +1,6 @@
 nose
 numpy
+pandas
 librosa
 scikit-maad
 scipy
