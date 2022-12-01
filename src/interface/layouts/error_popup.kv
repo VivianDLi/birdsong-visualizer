@@ -1,0 +1,16 @@
+#:kivy 2.1
+
+<ErrorPopup>:
+    size: (400, 400)
+    size_hint: (None, None)
+    title: "Error!"
+    BoxLayout:
+        orientation: "vertical"
+        Label:
+            text: root.error_text
+            text_size: self.size
+            halign: "center"
+            valign: "middle"
+        Button:
+            text: "close"
+            on_release: root.dismiss()

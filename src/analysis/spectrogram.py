@@ -24,6 +24,14 @@ class Spectrogram(ISpectrogram):
             raise ValueError(f"{index} not available to get.")
         return self.result[index]
 
+    def getColorResult(self, index: str) -> np.ndarray:
+        if index not in self.result:
+            raise ValueError(f"{index} not available to get.")
+        result = self.result[index]
+        result = result - np.min(result)  # lower bound is 0
+        result *= 255.0 / np.max(result)  # normalize to 0 to 255
+        return result
+
     def addIndex(self, index: str, result: np.ndarray) -> None:
         if self.result and result.shape != self.shape:
             raise ValueError(

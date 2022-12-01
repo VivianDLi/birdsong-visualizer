@@ -1,5 +1,6 @@
 # coordinate multiple analyzers in parallel
 
+import os
 from concurrent.futures import ProcessPoolExecutor, as_completed
 from typing import List
 import numpy as np
@@ -80,6 +81,11 @@ class AnalysisCoordinator(ICoordinator):
         return self.spectrogram
 
     def loadIndices(self, path: str) -> ISpectrogram:
+        _, ext = os.path.splitext(path)
+        if ext.lower() != ".csv":
+            raise ValueError("file is not a .csv: %s" % (path))
+        if not os.path.exists(path):
+            raise ValueError("file doesn't exist: %s" % (path))
         df = pd.read_csv(path, header=[0, 1], index_col=0)
         if df.index.nlevels != 1 or df.columns.nlevels != 2:
             raise ValueError(
@@ -97,6 +103,11 @@ class AnalysisCoordinator(ICoordinator):
         return self.spectrogram
 
     def saveIndices(self, path: str) -> None:
+        _, ext = os.path.splitext(path)
+        if ext.lower() != ".csv":
+            raise ValueError("file is not a .csv: %s" % (path))
+        if not os.path.exists(path):
+            raise ValueError("file doesn't exist: %s" % (path))
         acoustic_indices = self.spectrogram.getIndices()
         time_indices = [
             self.stream.segmentToTimestamp(t)

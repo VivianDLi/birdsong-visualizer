@@ -73,6 +73,10 @@ class ISpectrogram(Protocol):
         raise NotImplementedError
 
     @abstractmethod
+    def getColorResult(self, index: str) -> np.ndarray:
+        raise NotImplementedError
+
+    @abstractmethod
     def addIndex(self, index: str, result: np.ndarray) -> None:
         raise NotImplementedError
 

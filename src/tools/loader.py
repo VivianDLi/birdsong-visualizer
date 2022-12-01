@@ -223,7 +223,7 @@ class AudioStream(IAudioStream):
 
 def load_audio(file: str) -> IAudioStream:
     _, ext = os.path.splitext(file)
-    if ext != ".wav":
+    if ext.lower() != ".wav":
         raise ValueError("file is not a .wav")
     if not os.path.exists(file):
         raise ValueError("file doesn't exist")

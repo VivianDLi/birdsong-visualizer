@@ -1,0 +1,65 @@
+#:kivy 2.1
+
+<FrameLayout>:
+    spectrogram: spectrogram
+    orientation: "vertical"
+    spacing: 5
+    BoxLayout:
+        orientation: "horizontal"
+        height: 25
+        size_hint_y: None
+        padding_x: 5
+        spacing: 5
+        Label:
+            text: root.stream.file
+            text_size: self.size
+            markup: True
+            shorten: True
+        CustomButton:
+            id: play_button
+            text: "|>"
+            on_release: root.play()
+        CustomButton:
+            id: stop_button
+            text: "[]"
+            on_release: root.stop()
+        CustomButton:
+            id: close_button
+            text: "X"
+            on_release: root.parent.remove_widget(root)
+    # BoxLayout:
+    #     height: 30
+    #     IndexSelect:
+    #         id: red_index
+    #         Color:
+    #             rgb: (1, 0, 0, 1)
+    #     IndexSelect:
+    #         id: green_index
+    #         Color:
+    #             rgb: (0, 1, 0, 1)
+    #     IndexSelect:
+    #         id: blue_index
+    #         Color:
+    #             rgb: (0, 0, 1, 1)
+    Spectrogram:
+        id: spectrogram
+        spectrogram: root.coordinator.getSpectrogram()
+        indices: root.coordinator.getSpectrogram().getIndices()
+        shape: root.coordinator.getSpectrogram().getShape()
+        offset: root.offset
+    BoxLayout:
+        orientation: "horizontal"
+        height: 25
+        size_hint_y: None
+        padding_x: 5
+        spacing: 5
+        CustomButton:
+            id: ldfc_button
+            size_hint_x: 1
+            text: "LDFC"
+            on_release: spectrogram.update_canvas()
+        CustomButton:
+            id: stft_button
+            size_hint_x: 1
+            text: "STFT"
+            on_release: print("STFT")

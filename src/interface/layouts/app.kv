@@ -1,0 +1,12 @@
+#:kivy 2.1
+
+BoxLayout:
+    orientation: "vertical"
+    Toolbar:
+        id: toolbar
+        height: 35
+        size_hint: (1, None)
+        manager: manager
+    LayoutManager:
+        id: manager
+        current: "StartLayout"

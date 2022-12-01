@@ -1,0 +1,86 @@
+#:kivy 2.1
+
+<AddLayout>:
+    audio_file: audio_file
+    csv_file: csv_file
+    save_file: save_file
+    filechooser: filechooser
+    BoxLayout:
+        orientation: "vertical"
+        spacing: 5
+        GridLayout:
+            rows: 3
+            cols: 2
+            spacing: 5
+            height: 120
+            size_hint_y: None
+            Label:
+                text: "Audio File:"
+                text_size: self.size
+                halign: "right"
+                valign: "middle"
+                size_hint_x: .3
+            TextInput:
+                id: audio_file
+                multiline: False
+                do_wrap: False
+                focus: True
+                on_focus:
+                    root.text_input = audio_file
+                    filechooser.dirselect = False
+            BoxLayout:
+                orientation: "horizontal"
+                size_hint_x: .3
+                CheckBox:
+                    id: csv_checkbox
+                    width: 25
+                    size_hint_x: None
+                    active: False
+                Label:
+                    text: "Indices File:"
+                    text_size: self.size
+                    halign: "right"
+                    valign: "middle"
+            TextInput:
+                id: csv_file
+                multiline: False
+                do_wrap: False
+                on_focus:
+                    root.text_input = csv_file
+                    filechooser.dirselect = False
+                disabled: not csv_checkbox.active
+            BoxLayout:
+                orientation: "horizontal"
+                size_hint_x: .3
+                CheckBox:
+                    id: save_checkbox
+                    width: 25
+                    size_hint_x: None
+                    active: False
+                Label:
+                    text: "Save Location:"
+                    text_size: self.size
+                    halign: "right"
+                    valign: "middle"
+            TextInput:
+                id: save_file
+                multiline: False
+                do_wrap: False
+                on_focus:
+                    root.text_input = save_file
+                    filechooser.dirselect = True
+                disabled: not save_checkbox.active
+        BoxLayout:
+            height: 25
+            size_hint_y: None
+            CustomButton:
+                text: "Cancel"
+                size_hint_x: 1
+                on_release: root.cancel()
+            CustomButton:
+                text: "Load"
+                size_hint_x: 1
+                on_release: root.load()
+        FileChooserIconView:
+            id: filechooser
+            on_selection: root.text_input.text = self.selection and self.selection[0] or ''

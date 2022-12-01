@@ -1,0 +1,16 @@
+#:kivy 2.1
+
+<StartLayout>:
+    AnchorLayout:
+        canvas.before:
+            Color:
+                rgb: (.5, .5, .5, 1)
+            Rectangle:
+                pos: self.pos
+                size: self.size
+        CustomButton:
+            text: "start add"
+            size_hint: (.25, .1)
+            on_release:
+                root.manager.transition.direction = "left"
+                root.manager.current = "AddLayout"
