@@ -1,10 +1,11 @@
 # define class interfaces
 
 from abc import abstractmethod
-from typing import Iterable, List, Tuple, Union, Dict
+from typing import Iterable, List, Optional, Tuple, Union, Dict
 from typing_extensions import Protocol
 
 import numpy as np
+import threading
 
 
 class IAudioSegment(Protocol):
@@ -77,6 +78,10 @@ class ISpectrogram(Protocol):
         raise NotImplementedError
 
     @abstractmethod
+    def addSegment(self, i: int, result: Dict[str, np.ndarray]) -> None:
+        raise NotImplementedError
+
+    @abstractmethod
     def addIndex(self, index: str, result: np.ndarray) -> None:
         raise NotImplementedError
 
@@ -94,15 +99,14 @@ class ISpectrogram(Protocol):
 
 class ICoordinator(Protocol):
     stream: IAudioStream
-    current_indices: List[str]
     spectrogram: ISpectrogram
 
     @abstractmethod
-    def calculateIndex(self, index: str) -> np.ndarray:
+    def calculateSegment(self, i: int, *indices: str) -> ISpectrogram:
         raise NotImplementedError
 
     @abstractmethod
-    def calculateIndices(self) -> ISpectrogram:
+    def calculateIndices(self, *indices: str) -> ISpectrogram:
         raise NotImplementedError
 
     @abstractmethod
@@ -110,7 +114,7 @@ class ICoordinator(Protocol):
         raise NotImplementedError
 
     @abstractmethod
-    def loadIndices(self, path) -> ISpectrogram:
+    def loadIndices(self, path: str) -> List[str]:
         raise NotImplementedError
 
     @abstractmethod
@@ -125,5 +129,5 @@ class IAnalyzer(Protocol):
     segment: IAudioSegment
 
     @abstractmethod
-    def calculateIndex(self, index: str) -> np.ndarray:
+    def calculateIndices(self, *indices: str) -> Dict[str, np.ndarray]:
         raise NotImplementedError

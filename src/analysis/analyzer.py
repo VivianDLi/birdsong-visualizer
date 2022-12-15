@@ -36,13 +36,24 @@ class Analyzer(IAnalyzer):
         }
         self._calculated: dict[Callable, np.ndarray] = {}
 
-    def calculateIndex(self, index: str) -> np.ndarray:
-        function = self._index_mapping[index]
-        if function in self._calculated:
-            return self._get_correct_result(index, self._calculated[function])
-        result = function(self.segment)
-        self._calculated[function] = result
-        return self._get_correct_result(index, result)
+    def calculateIndices(
+        self, *indices: str
+    ) -> Tuple[Dict[str, np.ndarray], List[Tuple[str, str]]]:
+        results = {}
+        log = []
+        for index in indices:
+            function = self._index_mapping[index]
+            if function in self._calculated:
+                results[index] = self._get_correct_result(
+                    index, self._calculated[function]
+                )
+            try:
+                result = function(self.segment)
+                self._calculated[function] = result
+                results[index] = self._get_correct_result(index, result)
+            except Exception as exc:
+                log.append((index, exc))
+        return results, log
 
     def _get_correct_result(self, index: str, result) -> np.ndarray:
         value = result

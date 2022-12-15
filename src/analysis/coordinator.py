@@ -5,14 +5,46 @@ from concurrent.futures import ProcessPoolExecutor, as_completed
 from typing import List
 import numpy as np
 import pandas as pd
+import itertools
 
 from .analyzer import Analyzer
 from .spectrogram import Spectrogram
-from src.tools.interfaces import ICoordinator, ISpectrogram, IAudioStream
+from src.tools.interfaces import (
+    ICoordinator,
+    ISpectrogram,
+    IAudioStream,
+    IAudioSegment,
+)
 
 
 class AnalysisCoordinator(ICoordinator):
-    def __init__(self, stream: IAudioStream, indices: List[str]):
+    def __init__(self, stream: IAudioStream):
+        self.stream = stream
+        self.spectrogram = Spectrogram({}, sr=stream.sr)
+
+    def calculateSegment(self, i: int, *indices: str) -> ISpectrogram:
+        segment = next(itertools.islice(self.stream, i, None))
+        analyzer = Analyzer(segment)
+        result, log = analyzer.calculateIndices(*indices)
+        for (index, exc) in log:
+            print(
+                "Segment starting at %r generated an exception for index %s: %s"
+                % (
+                    self.stream.segmentToTimestamp(i),
+                    index,
+                    exc,
+                ),
+                flush=True,
+            )
+        if not hasattr(self.spectrogram, "shape"):
+            self.spectrogram.shape = (
+                self.stream.getNumberOfSegments(),
+                len(result[indices[0]]),
+            )
+        self.spectrogram.addSegment(i, result)
+        return self.spectrogram
+
+    def calculateIndices(self, *indices: str) -> ISpectrogram:
         supported_indices = [
             "Ht",
             "M",
@@ -36,33 +68,33 @@ class AnalysisCoordinator(ICoordinator):
             "ARI",
             "H",
         ]
-        if len(indices) > 3:
-            raise ValueError(
-                "Only up to three acoustic indices should be specified."
-            )
-        if any([i not in supported_indices for i in indices]):
+        uncalculated_indices = [
+            index
+            for index in indices
+            if index not in self.spectrogram.getIndices()
+        ]
+        if any([i not in supported_indices for i in uncalculated_indices]):
             raise ValueError("Unsupported acoustic indices were specified.")
-        self.stream = stream
-        self.current_indices = indices
-        self.spectrogram = Spectrogram({}, sr=stream.sr)
-        self._analyzers = [Analyzer(segment) for segment in stream]
 
-    def calculateIndex(self, index: str) -> np.ndarray:
-        try:
-            return self.spectrogram.getResult(index)
-        except:
-            results = np.empty((self.stream.getNumberOfSegments(), 256))
-            with ProcessPoolExecutor() as executor:
-                futures_to_segment = {
-                    executor.submit(analyzer.calculateIndex, index): i
-                    for i, analyzer in enumerate(self._analyzers)
-                }
-                for future in as_completed(futures_to_segment):
-                    segment_number = futures_to_segment[future]
-                    try:
-                        result = future.result()
-                        results[segment_number] = result
-                    except Exception as exc:
+        results = {
+            index: np.zeros((self.stream.getNumberOfSegments(), 256))
+            for index in uncalculated_indices
+        }
+        analyzers = [Analyzer(segment) for segment in self.stream]
+        with ProcessPoolExecutor() as executor:
+            futures_to_segment = {
+                executor.submit(
+                    analyzer.calculateIndices, *uncalculated_indices
+                ): i
+                for i, analyzer in enumerate(analyzers)
+            }
+            for future in as_completed(futures_to_segment):
+                segment_number = futures_to_segment[future]
+                try:
+                    result, log = future.result()
+                    for index in result:
+                        results[index][segment_number] = result[index]
+                    for (index, exc) in log:
                         print(
                             "Segment starting at %r generated an exception for index %s: %s"
                             % (
@@ -71,16 +103,20 @@ class AnalysisCoordinator(ICoordinator):
                                 exc,
                             )
                         )
-                        results[segment_number] = np.zeros(256)
-            self.spectrogram.addIndex(index, results)
-            return results
-
-    def calculateIndices(self) -> ISpectrogram:
-        for index in self.current_indices:
-            self.calculateIndex(index)
+                except Exception as exc:
+                    print(
+                        "Segment starting at %r generated an exception: %s"
+                        % (
+                            self.stream.segmentToTimestamp(segment_number),
+                            exc,
+                        ),
+                        flush=True,
+                    )
+        for index, result in results.items():
+            self.spectrogram.addIndex(index, result)
         return self.spectrogram
 
-    def loadIndices(self, path: str) -> ISpectrogram:
+    def loadIndices(self, path: str) -> List[str]:
         _, ext = os.path.splitext(path)
         if ext.lower() != ".csv":
             raise ValueError("file is not a .csv: %s" % (path))
@@ -89,7 +125,8 @@ class AnalysisCoordinator(ICoordinator):
         df = pd.read_csv(path, header=[0, 1], index_col=0)
         if df.index.nlevels != 1 or df.columns.nlevels != 2:
             raise ValueError(
-                "Dataframe obtained from .csv at %s has the wrong format. The correct format should be frequencies as rows and (time indices, acoustic indices) as columns in a multi-level index."
+                "Dataframe obtained from .csv at %s has the wrong format. \
+                The correct format should be frequencies as rows and (time indices, acoustic indices) as columns in a multi-level index."
                 % (path)
             )
         new_indices: list[str] = df.columns.levels[1]  # type: ignore
@@ -100,14 +137,12 @@ class AnalysisCoordinator(ICoordinator):
                 .to_numpy()
             ).transpose()
             self.spectrogram.addIndex(index, result)
-        return self.spectrogram
+        return new_indices
 
     def saveIndices(self, path: str) -> None:
         _, ext = os.path.splitext(path)
         if ext.lower() != ".csv":
             raise ValueError("file is not a .csv: %s" % (path))
-        if not os.path.exists(path):
-            raise ValueError("file doesn't exist: %s" % (path))
         acoustic_indices = self.spectrogram.getIndices()
         time_indices = [
             self.stream.segmentToTimestamp(t)

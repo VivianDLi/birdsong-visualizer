@@ -1,9 +1,20 @@
 #:kivy 2.1
 
 <Spectrogram>:
-    canvas:
+    scrollview: scrollview
+    on_size: self.on_spectrogram()
+    canvas.before:
         Color:
-            rgb: (1, 0, 0, 1)
-        Line:
-            #points: (self.offset * self.size[0] / self.shape[0], 0, self.offset * self.size[0] / self.shape[0], self.height)
-            points: (0, 0, 0, self.height)
+            rgb: (.3, .3, .3, 1)
+        Rectangle:
+            pos: self.pos
+            size: self.size
+    ScrollView:
+        id: scrollview
+        size: root.size
+        do_scroll_y: False
+        always_overscroll: False
+        effect_cls: kivy.effects.scroll.ScrollEffect
+        Image:
+            source: 'src/interface/resources/loading.gif'
+            size_hint_x: None
