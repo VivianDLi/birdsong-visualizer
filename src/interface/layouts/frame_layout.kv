@@ -3,6 +3,7 @@
 <FrameLayout>:
     spectrogram: spectrogram
     loading: loading
+    playback_time: playback_time
     orientation: "vertical"
     spacing: 5
     padding: 5
@@ -18,8 +19,19 @@
             shorten: True
         Image:
             id: loading
+            width: 25
+            size_hint_x: None
             color: (1, 1, 1, 0)
             source: 'src/interface/resources/loading.gif'
+        TextInput:
+            id: playback_time
+            text: "0"
+            multiline: False
+            input_filter: "int"
+            font_size: self.height / 2
+            on_text:
+                if self.text != "": \
+                root.offset = root.setOffset(int(self.text))
         CustomButton:
             id: play_button
             text: "|>"

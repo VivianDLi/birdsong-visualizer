@@ -2,6 +2,8 @@
 
 from typing import Dict, Callable, Iterable
 
+import traceback
+
 from .temporal_indices import *
 from .spectral_indices import *
 from .secondary_indices import *
@@ -51,8 +53,8 @@ class Analyzer(IAnalyzer):
                 result = function(self.segment)
                 self._calculated[function] = result
                 results[index] = self._get_correct_result(index, result)
-            except Exception as exc:
-                log.append((index, exc))
+            except:
+                log.append((index, traceback.format_exc()))
         return results, log
 
     def _get_correct_result(self, index: str, result) -> np.ndarray:

@@ -26,6 +26,14 @@ class IAudioSegment(Protocol):
         raise NotImplementedError
 
 
+class IPlaybackThread(Protocol):
+    playback_time: float
+
+    @abstractmethod
+    def stop(self):
+        raise NotImplementedError
+
+
 class IAudioStream(Iterable[IAudioSegment], Protocol):
     file: str
     sr: int
@@ -49,7 +57,7 @@ class IAudioStream(Iterable[IAudioSegment], Protocol):
     @abstractmethod
     def play(
         self, offset: float = 0, duration: Union[float, None] = None
-    ) -> None:
+    ) -> IPlaybackThread:
         raise NotImplementedError
 
     @abstractmethod
@@ -59,6 +67,9 @@ class IAudioStream(Iterable[IAudioSegment], Protocol):
     def getNumberOfSegments(self) -> int:
         # ceiling division
         return int(-(self.file_duration // -self.segment_duration))
+
+    def getDuration(self) -> float:
+        return self.time_limits[1] - self.time_limits[0]
 
     def segmentToTimestamp(self, segment_number: int) -> float:
         return segment_number * self.segment_duration
@@ -102,7 +113,7 @@ class ICoordinator(Protocol):
     spectrogram: ISpectrogram
 
     @abstractmethod
-    def calculateSegment(self, i: int, *indices: str) -> ISpectrogram:
+    def calculateSegment(self, i: int, *indices: str) -> Dict[str, np.ndarray]:
         raise NotImplementedError
 
     @abstractmethod
@@ -114,7 +125,7 @@ class ICoordinator(Protocol):
         raise NotImplementedError
 
     @abstractmethod
-    def loadIndices(self, path: str) -> List[str]:
+    def loadIndices(self, path: str) -> ISpectrogram:
         raise NotImplementedError
 
     @abstractmethod

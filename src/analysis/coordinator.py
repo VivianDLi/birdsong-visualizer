@@ -2,7 +2,7 @@
 
 import os
 from concurrent.futures import ProcessPoolExecutor, as_completed
-from typing import List
+from typing import Dict, List
 import numpy as np
 import pandas as pd
 import itertools
@@ -22,7 +22,7 @@ class AnalysisCoordinator(ICoordinator):
         self.stream = stream
         self.spectrogram = Spectrogram({}, sr=stream.sr)
 
-    def calculateSegment(self, i: int, *indices: str) -> ISpectrogram:
+    def calculateSegment(self, i: int, *indices: str) -> Dict[str, np.ndarray]:
         segment = next(itertools.islice(self.stream, i, None))
         analyzer = Analyzer(segment)
         result, log = analyzer.calculateIndices(*indices)
@@ -36,13 +36,7 @@ class AnalysisCoordinator(ICoordinator):
                 ),
                 flush=True,
             )
-        if not hasattr(self.spectrogram, "shape"):
-            self.spectrogram.shape = (
-                self.stream.getNumberOfSegments(),
-                len(result[indices[0]]),
-            )
-        self.spectrogram.addSegment(i, result)
-        return self.spectrogram
+        return result
 
     def calculateIndices(self, *indices: str) -> ISpectrogram:
         supported_indices = [
@@ -116,7 +110,7 @@ class AnalysisCoordinator(ICoordinator):
             self.spectrogram.addIndex(index, result)
         return self.spectrogram
 
-    def loadIndices(self, path: str) -> List[str]:
+    def loadIndices(self, path: str) -> ISpectrogram:
         _, ext = os.path.splitext(path)
         if ext.lower() != ".csv":
             raise ValueError("file is not a .csv: %s" % (path))
@@ -137,7 +131,7 @@ class AnalysisCoordinator(ICoordinator):
                 .to_numpy()
             ).transpose()
             self.spectrogram.addIndex(index, result)
-        return new_indices
+        return self.spectrogram
 
     def saveIndices(self, path: str) -> None:
         _, ext = os.path.splitext(path)

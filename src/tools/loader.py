@@ -11,12 +11,17 @@ import numpy as np
 import sounddevice as sd
 
 from src.tools.noise import waveform_denoise, spectrogram_denoise
-from src.tools.interfaces import IAudioSegment, IAudioStream
+from src.tools.interfaces import IAudioSegment, IAudioStream, IPlaybackThread
 
 
-class PlaybackThread(threading.Thread):
+class PlaybackThread(threading.Thread, IPlaybackThread):
     def __init__(
-        self, stream, sr: int, block_size: int, buffer_size: int = 10
+        self,
+        stream,
+        offset: float,
+        sr: int,
+        block_size: int,
+        buffer_size: int = 10,
     ):
         threading.Thread.__init__(self, daemon=True)
         self.stream = stream
@@ -26,6 +31,7 @@ class PlaybackThread(threading.Thread):
         self.queue = queue.Queue(maxsize=buffer_size)
         self.event = threading.Event()
         self.output_stream = None
+        self.playback_time = offset
 
     def _callback(self, outdata, frames, time, status):
         assert frames == self.block_size
@@ -37,6 +43,7 @@ class PlaybackThread(threading.Thread):
             data = np.reshape(data, (len(data), 1))
         except queue.Empty:
             raise sd.CallbackAbort("Buffer is empty: increase buffersize?")
+        self.playback_time += frames / float(self.sr)
         if len(data) < len(outdata):
             outdata[: len(data)] = data
             outdata[len(data) :].fill(0)
@@ -135,7 +142,7 @@ class AudioStream(IAudioStream):
         else:
             self.time_limits = time_limits
         # iteration
-        self.position = 0
+        self.position = self.time_limits[0]
         # playback
         self._playback_thread = None
 
@@ -146,7 +153,7 @@ class AudioStream(IAudioStream):
         return self.next()
 
     def next(self):
-        if self.position < self.file_duration:
+        if self.position < self.time_limits[1]:
             y, sr = librosa.load(
                 self.file,
                 sr=self.sr,
@@ -180,7 +187,7 @@ class AudioStream(IAudioStream):
             frame_length=n_fft,
             hop_length=hop_length,
             offset=self.time_limits[0],
-            duration=self.time_limits[1] - self.time_limits[0],
+            duration=self.getDuration(),
         )
         # concatenate block stfts horizontally
         S = np.concatenate(
@@ -197,21 +204,25 @@ class AudioStream(IAudioStream):
 
     def play(
         self, offset: float = 0, duration: Union[float, None] = None
-    ) -> None:
+    ) -> IPlaybackThread:
         if self._playback_thread is not None:
             self.stop()
         if duration is None:
-            duration = self.file_duration - offset
+            duration = self.getDuration() - offset
+        orig_sr = librosa.get_samplerate(self.file)
         stream = librosa.stream(
             self.file,
             block_length=10,
             frame_length=1024,
             hop_length=1024,
-            offset=offset,
+            offset=offset + self.time_limits[0],
             duration=duration,
         )
-        self._playback_thread = PlaybackThread(stream, self.sr, 10 * 1024)
+        self._playback_thread = PlaybackThread(
+            stream, offset + self.time_limits[0], orig_sr, 10 * 1024
+        )
         self._playback_thread.start()
+        return self._playback_thread
 
     def stop(self):
         if self._playback_thread is not None:
